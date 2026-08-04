@@ -12,11 +12,16 @@ public class AuthControllerTests
 {
     private readonly Mock<IUserStore> _userStore = new();
     private readonly Mock<IPasswordHasher> _passwordHasher = new();
+    private readonly Mock<IJwtTokenGenerator> _tokenGenerator = new();
     private readonly AuthController _sut;
 
     public AuthControllerTests()
     {
-        _sut = new AuthController(_userStore.Object, _passwordHasher.Object, Mock.Of<ILogger<AuthController>>());
+        _sut = new AuthController(
+            _userStore.Object,
+            _passwordHasher.Object,
+            _tokenGenerator.Object,
+            Mock.Of<ILogger<AuthController>>());
     }
 
     [Fact]
@@ -30,6 +35,7 @@ public class AuthControllerTests
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var response = Assert.IsType<AuthResponse>(okResult.Value);
         Assert.True(response.Success);
+        Assert.Equal("Registration successful. You can now log in.", response.Message);
     }
 
     [Fact]
@@ -43,6 +49,7 @@ public class AuthControllerTests
         var conflictResult = Assert.IsType<ConflictObjectResult>(result.Result);
         var response = Assert.IsType<AuthResponse>(conflictResult.Value);
         Assert.False(response.Success);
+        Assert.Equal("Username 'bob' is already taken.", response.Message);
     }
 
     [Fact]

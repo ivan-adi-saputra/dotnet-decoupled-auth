@@ -8,4 +8,5 @@ public static class ApiRoutes
 {
     public const string Register = "api/auth/register";
     public const string Login = "api/auth/login";
+    public const string Me = "api/auth/me";
 }
