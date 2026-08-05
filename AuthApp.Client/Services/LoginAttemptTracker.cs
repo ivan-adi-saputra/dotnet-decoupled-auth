@@ -10,7 +10,16 @@ namespace AuthApp.Client.Services;
 /// </summary>
 public class LoginAttemptTracker
 {
+    /// <summary>
+    /// The flowchart's "LoginFailed > 3" threshold — the single source of truth for the
+    /// lockout boundary, so Login and LockScreen can't drift out of sync by comparing
+    /// against a magic number copied into each page separately.
+    /// </summary>
+    public const int MaxFailedAttempts = 3;
+
     public int FailedCount { get; private set; }
+
+    public bool IsLockedOut => FailedCount > MaxFailedAttempts;
 
     public int RecordFailure() => ++FailedCount;
 

@@ -1,0 +1,36 @@
+@page "/welcome"
+@inject AuthSession Session
+@inject AuthApiService AuthApi
+@inject NavigationManager Navigation
+
+<PageTitle>Welcome</PageTitle>
+
+<div class="auth-card">
+    <div class="auth-icon success">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+            <polyline points="22 4 12 14.01 9 11.01" />
+        </svg>
+    </div>
+    <h3>Welcome, @Session.Username!</h3>
+    <p class="auth-subtitle">You have successfully logged in.</p>
+
+    <button type="button" class="btn btn-primary" @onclick="HandleLogout">Logout</button>
+</div>
+
+@code {
+    protected override void OnInitialized()
+    {
+        // Reaching /welcome without a live session (typed directly in the address bar, or
+        // after a reload — AuthSession is in-memory only and clears on reload by design)
+        // has no username to greet, so send the user back to Login instead.
+        Navigation.EnsureOr(Session.IsAuthenticated, "/");
+    }
+
+    private void HandleLogout()
+    {
+        AuthApi.SetBearerToken(null);
+        Session.SignOut();
+        Navigation.NavigateTo("/");
+    }
+}

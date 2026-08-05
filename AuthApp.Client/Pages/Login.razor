@@ -55,6 +55,16 @@
     private readonly LoginFormModel _model = new();
     private bool _isSubmitting;
 
+    protected override void OnInitialized()
+    {
+        // Once locked out, the only legitimate way back to LoginFailed = 0 is a real app
+        // restart (browser reload), matching the flowchart's "Start" point — not by simply
+        // navigating back to this page while AttemptTracker's count is untouched. Without
+        // this guard, a 5th attempt that happens to succeed would log the user in despite
+        // already having exceeded the limit.
+        Navigation.EnsureOr(!AttemptTracker.IsLockedOut, "/lockscreen");
+    }
+
     private async Task HandleLoginAsync()
     {
         // Defensive re-entrancy guard: the submit button is disabled while a request is
@@ -92,10 +102,8 @@
         // silently reset the count. It's only meant to reset on success (above) or when
         // the WASM app itself restarts via a real browser reload ("Start -> LoginFailed
         // = 0" on the flowchart), not on in-app navigation.
-        if (AttemptTracker.RecordFailure() > 3)
-        {
-            Navigation.NavigateTo("/lockscreen");
-        }
+        AttemptTracker.RecordFailure();
+        Navigation.EnsureOr(!AttemptTracker.IsLockedOut, "/lockscreen");
     }
 
     private void GoToRegister() => Navigation.NavigateTo("/register");
