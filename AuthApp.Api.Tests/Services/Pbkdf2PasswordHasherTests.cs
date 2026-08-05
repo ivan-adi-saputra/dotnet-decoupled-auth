@@ -43,4 +43,22 @@ public class Pbkdf2PasswordHasherTests
     {
         Assert.False(_hasher.Verify("anything", malformedHash));
     }
+
+    [Fact]
+    public void DummyHash_is_a_validly_formatted_hash_that_no_real_password_verifies_against()
+    {
+        // AuthController.Login verifies against this when no user was found, purely to
+        // keep timing uniform — it must behave exactly like a real stored hash (same
+        // format, same cost to verify against), just never actually match anything.
+        Assert.False(_hasher.Verify("Secret123", _hasher.DummyHash));
+        Assert.False(_hasher.Verify("", _hasher.DummyHash));
+    }
+
+    [Fact]
+    public void DummyHash_is_the_same_value_every_time_it_is_read()
+    {
+        // Computed once at construction (this class is registered as a singleton), not
+        // recomputed per call — otherwise every login would pay the PBKDF2 cost twice.
+        Assert.Equal(_hasher.DummyHash, _hasher.DummyHash);
+    }
 }

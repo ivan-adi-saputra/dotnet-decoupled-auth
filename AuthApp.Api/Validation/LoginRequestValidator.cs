@@ -11,11 +11,13 @@ public class LoginRequestValidator : AbstractValidator<LoginRequest>
             .Cascade(CascadeMode.Stop)
             .NotEmpty().WithMessage("Username is required.")
             .MinimumLength(3).WithMessage("Username must be at least 3 characters long.")
-            .Must(username => !username.Any(char.IsWhiteSpace)).WithMessage("Username must not contain spaces.");
+            .MaximumLength(32).WithMessage("Username must be at most 32 characters long.")
+            .Matches(RegisterRequestValidator.UsernameCharset).WithMessage("Username can only contain letters, numbers, underscores, and hyphens.");
 
         RuleFor(x => x.Password)
             .Cascade(CascadeMode.Stop)
             .NotEmpty().WithMessage("Password is required.")
-            .MinimumLength(8).WithMessage("Password must be at least 8 characters long.");
+            .MinimumLength(8).WithMessage("Password must be at least 8 characters long.")
+            .MaximumLength(128).WithMessage("Password must be at most 128 characters long.");
     }
 }

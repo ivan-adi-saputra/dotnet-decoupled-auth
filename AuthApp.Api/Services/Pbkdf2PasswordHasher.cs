@@ -14,6 +14,22 @@ public class Pbkdf2PasswordHasher : IPasswordHasher
     private const int Iterations = 600_000;
     private static readonly HashAlgorithmName Algorithm = HashAlgorithmName.SHA256;
 
+    // Computed once per process (this class is registered as a singleton), not per
+    // request — otherwise every login would pay this cost twice (once here, once for the
+    // real Verify() call), doubling response time across the board instead of just
+    // equalizing the two branches that matter.
+    public string DummyHash { get; } = ComputeDummyHash();
+
+    private static string ComputeDummyHash()
+    {
+        // The password hashed here is arbitrary and not a secret — nothing is ever
+        // authenticated against it for real. It only exists to give Verify() a
+        // realistic, correctly-formatted target to hash against.
+        var salt = RandomNumberGenerator.GetBytes(SaltSize);
+        var hash = Rfc2898DeriveBytes.Pbkdf2("dummy-password-for-timing-safety", salt, Iterations, Algorithm, HashSize);
+        return $"{Iterations}.{Convert.ToBase64String(salt)}.{Convert.ToBase64String(hash)}";
+    }
+
     public string Hash(string password)
     {
         var salt = RandomNumberGenerator.GetBytes(SaltSize);

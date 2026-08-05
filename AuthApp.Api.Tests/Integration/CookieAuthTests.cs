@@ -25,7 +25,7 @@ public class CookieAuthTests : IClassFixture<WebApplicationFactory<Program>>
     public async Task Me_succeeds_from_the_cookie_alone_with_no_authorization_header()
     {
         var client = _factory.CreateClient();
-        var username = $"cookie-{Guid.NewGuid():N}";
+        var username = $"cookie-{Guid.NewGuid():N}"[..32];
         const string password = "Secret123!";
 
         await client.PostAsJsonAsync("/api/auth/register", new RegisterRequest(username, password));
@@ -49,7 +49,7 @@ public class CookieAuthTests : IClassFixture<WebApplicationFactory<Program>>
     public async Task Logout_clears_the_cookie_so_a_later_me_call_is_unauthorized()
     {
         var client = _factory.CreateClient();
-        var username = $"cookie-{Guid.NewGuid():N}";
+        var username = $"cookie-{Guid.NewGuid():N}"[..32];
         const string password = "Secret123!";
 
         await client.PostAsJsonAsync("/api/auth/register", new RegisterRequest(username, password));

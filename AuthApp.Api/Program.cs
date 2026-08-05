@@ -1,11 +1,15 @@
+using System.IdentityModel.Tokens.Jwt;
 using System.Text;
+using System.Threading.RateLimiting;
 using AuthApp.Api.Authentication;
 using AuthApp.Api.ErrorHandling;
 using AuthApp.Api.Filters;
+using AuthApp.Api.RateLimiting;
 using AuthApp.Api.Services;
 using FluentValidation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 
@@ -53,6 +57,8 @@ builder.Services.Configure<ApiBehaviorOptions>(options =>
 builder.Services.AddSingleton<IUserStore, InMemoryUserStore>();
 builder.Services.AddSingleton<IPasswordHasher, Pbkdf2PasswordHasher>();
 builder.Services.AddSingleton<IJwtTokenGenerator, JwtTokenGenerator>();
+builder.Services.AddSingleton<ITokenRevocationStore, InMemoryTokenRevocationStore>();
+builder.Services.AddSingleton<IJwtTokenValidator, JwtTokenValidator>();
 
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
@@ -75,34 +81,59 @@ if (string.IsNullOrWhiteSpace(jwtSigningKey) || Encoding.UTF8.GetByteCount(jwtSi
         "Jwt:SigningKey must be configured with at least 32 bytes (256 bits) for HMAC-SHA256.");
 }
 
+// Registered as its own singleton (not just assigned inline below) so JwtTokenValidator —
+// used by Logout to safely trust a jti before revoking it — validates against the exact
+// same rules as the JwtBearer middleware that protects every other endpoint, rather than a
+// second copy of this config that could quietly drift out of sync.
+var tokenValidationParameters = new TokenValidationParameters
+{
+    ValidateIssuer = true,
+    ValidIssuer = jwtIssuer,
+    ValidateAudience = true,
+    ValidAudience = jwtAudience,
+    ValidateIssuerSigningKey = true,
+    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSigningKey)),
+    ValidateLifetime = true,
+    ClockSkew = TimeSpan.FromSeconds(30)
+};
+builder.Services.AddSingleton(tokenValidationParameters);
+
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
-        options.TokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateIssuer = true,
-            ValidIssuer = jwtIssuer,
-            ValidateAudience = true,
-            ValidAudience = jwtAudience,
-            ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSigningKey)),
-            ValidateLifetime = true,
-            ClockSkew = TimeSpan.FromSeconds(30)
-        };
+        options.TokenValidationParameters = tokenValidationParameters;
 
-        // The SPA no longer attaches an Authorization header itself — it relies on the
-        // HttpOnly cookie set on login, which the browser sends automatically. Falling
-        // back to the cookie only when no header is present keeps the existing header-based
-        // flow (e.g. Swagger's "Authorize" button) working unchanged.
         options.Events = new JwtBearerEvents
         {
+            // The SPA no longer attaches an Authorization header itself — it relies on the
+            // HttpOnly cookie set on login, which the browser sends automatically. Falling
+            // back to the cookie only when no header is present keeps the existing
+            // header-based flow (e.g. Swagger's "Authorize" button) working unchanged.
             OnMessageReceived = context =>
             {
                 if (string.IsNullOrEmpty(context.Token) &&
                     context.Request.Cookies.TryGetValue(AuthCookieDefaults.CookieName, out var cookieToken))
                 {
                     context.Token = cookieToken;
+                }
+
+                return Task.CompletedTask;
+            },
+
+            // Signature/issuer/audience/lifetime are already valid by this point — this is
+            // the one additional check standard JWT validation can't express on its own:
+            // "has this specific token been explicitly logged out." Resolved from
+            // RequestServices (not a constructor parameter) because JwtBearerEvents is
+            // built once at startup, before per-request DI scopes exist.
+            OnTokenValidated = context =>
+            {
+                var jti = context.Principal?.FindFirst(JwtRegisteredClaimNames.Jti)?.Value;
+                var revocationStore = context.HttpContext.RequestServices.GetRequiredService<ITokenRevocationStore>();
+
+                if (jti is not null && revocationStore.IsRevoked(jti))
+                {
+                    context.Fail("Token has been revoked.");
                 }
 
                 return Task.CompletedTask;
@@ -137,6 +168,25 @@ builder.Services.AddCors(options =>
     });
 });
 
+// Server-side defense-in-depth against brute force: LoginFailed (the flowchart's lockout
+// counter) is entirely client-side state, so anyone calling these endpoints directly
+// (curl/Postman/script) bypasses it completely. Partitioned per client IP so one abusive
+// caller can't exhaust the limit for everyone else; a fixed window keeps behavior simple
+// and predictable to reason about and test.
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddPolicy(RateLimiterPolicies.Auth, httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 10,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0
+            }));
+});
+
 var app = builder.Build();
 
 app.UseExceptionHandler();
@@ -147,10 +197,27 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+else
+{
+    // Not meaningful in Development, which this project always runs over plain HTTP (see
+    // the SameSite/cookie note in Sprint 8) — HSTS only matters once real HTTPS is served.
+    app.UseHsts();
+}
 
 app.UseHttpsRedirection();
 
+// Applies to every response, API-wide: tells the browser to trust the Content-Type header
+// as-is instead of guessing (MIME-sniffing) from the response body. Cheap, standard
+// hardening with no behavioral trade-off for a JSON API like this one.
+app.Use(async (context, next) =>
+{
+    context.Response.Headers.Append("X-Content-Type-Options", "nosniff");
+    await next();
+});
+
 app.UseCors(ClientCorsPolicy);
+
+app.UseRateLimiter();
 
 app.UseAuthentication();
 app.UseAuthorization();

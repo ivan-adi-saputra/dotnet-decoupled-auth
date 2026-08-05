@@ -26,6 +26,8 @@ public class AuthControllerLoginTests
             _userStore.Object,
             _passwordHasher.Object,
             _tokenGenerator.Object,
+            Mock.Of<IJwtTokenValidator>(),
+            Mock.Of<ITokenRevocationStore>(),
             environment.Object,
             Mock.Of<ILogger<AuthController>>())
         {

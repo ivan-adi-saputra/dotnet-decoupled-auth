@@ -22,6 +22,8 @@ public class AuthControllerTests
             _userStore.Object,
             _passwordHasher.Object,
             _tokenGenerator.Object,
+            Mock.Of<IJwtTokenValidator>(),
+            Mock.Of<ITokenRevocationStore>(),
             Mock.Of<IWebHostEnvironment>(),
             Mock.Of<ILogger<AuthController>>());
     }

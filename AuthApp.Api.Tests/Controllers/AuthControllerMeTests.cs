@@ -18,6 +18,8 @@ public class AuthControllerMeTests
             Mock.Of<IUserStore>(),
             Mock.Of<IPasswordHasher>(),
             Mock.Of<IJwtTokenGenerator>(),
+            Mock.Of<IJwtTokenValidator>(),
+            Mock.Of<ITokenRevocationStore>(),
             Mock.Of<IWebHostEnvironment>(),
             Mock.Of<ILogger<AuthController>>());
 

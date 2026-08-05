@@ -53,7 +53,31 @@ public class LoginRequestValidatorTests
         var result = _validator.TestValidate(new LoginRequest("bad user", "secret123"));
 
         result.ShouldHaveValidationErrorFor(x => x.Username)
-            .WithErrorMessage("Username must not contain spaces.");
+            .WithErrorMessage("Username can only contain letters, numbers, underscores, and hyphens.");
+    }
+
+    [Theory]
+    [InlineData("<svg/onload=alert(1)>")]
+    [InlineData("bad'user")]
+    [InlineData("bad\"user")]
+    [InlineData("bad<user>")]
+    public void Should_have_error_when_username_contains_html_metacharacters(string username)
+    {
+        var result = _validator.TestValidate(new LoginRequest(username, "secret123"));
+
+        result.ShouldHaveValidationErrorFor(x => x.Username)
+            .WithErrorMessage("Username can only contain letters, numbers, underscores, and hyphens.");
+    }
+
+    [Fact]
+    public void Should_have_error_when_username_is_longer_than_32_characters()
+    {
+        var username = new string('a', 33);
+
+        var result = _validator.TestValidate(new LoginRequest(username, "secret123"));
+
+        result.ShouldHaveValidationErrorFor(x => x.Username)
+            .WithErrorMessage("Username must be at most 32 characters long.");
     }
 
     [Fact]
@@ -63,6 +87,17 @@ public class LoginRequestValidatorTests
 
         result.ShouldHaveValidationErrorFor(x => x.Password)
             .WithErrorMessage("Password must be at least 8 characters long.");
+    }
+
+    [Fact]
+    public void Should_have_error_when_password_is_longer_than_128_characters()
+    {
+        var password = new string('a', 129);
+
+        var result = _validator.TestValidate(new LoginRequest("user", password));
+
+        result.ShouldHaveValidationErrorFor(x => x.Password)
+            .WithErrorMessage("Password must be at most 128 characters long.");
     }
 
     [Fact]

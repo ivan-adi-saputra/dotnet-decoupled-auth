@@ -45,7 +45,7 @@ public class MeEndpointTests : IClassFixture<WebApplicationFactory<Program>>
     [Fact]
     public async Task Me_with_a_token_from_a_real_login_returns_the_username()
     {
-        var username = $"integration-{Guid.NewGuid():N}";
+        var username = $"integration-{Guid.NewGuid():N}"[..32];
         const string password = "Secret123!";
 
         await _client.PostAsJsonAsync("/api/auth/register", new RegisterRequest(username, password));
