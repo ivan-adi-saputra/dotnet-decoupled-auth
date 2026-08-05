@@ -1,0 +1,93 @@
+@page "/register"
+@inject AuthApiService AuthApi
+@inject NotificationService Notify
+@inject NavigationManager Navigation
+
+<PageTitle>Register</PageTitle>
+
+<div class="auth-card">
+    <div class="auth-icon">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+            <circle cx="9" cy="7" r="4" />
+            <line x1="19" y1="8" x2="19" y2="14" />
+            <line x1="16" y1="11" x2="22" y2="11" />
+        </svg>
+    </div>
+    <h3>Create Account</h3>
+    <p class="auth-subtitle">Sign up to get started</p>
+
+    <EditForm Model="_model" OnValidSubmit="HandleRegisterAsync">
+        <DataAnnotationsValidator />
+
+        <div class="mb-3">
+            <label for="username" class="form-label">Username</label>
+            <InputText id="username" class="form-control" placeholder="Choose a username" autocomplete="username" @bind-Value="_model.Username" />
+            <ValidationMessage For="@(() => _model.Username)" class="text-danger small" />
+        </div>
+
+        <div class="mb-3">
+            <label for="password" class="form-label">Password</label>
+            <InputText id="password" type="password" class="form-control" placeholder="Create a password" autocomplete="new-password" @bind-Value="_model.Password" />
+            <ValidationMessage For="@(() => _model.Password)" class="text-danger small" />
+        </div>
+
+        <button type="submit" class="btn btn-primary" disabled="@_isSubmitting">
+            @if (_isSubmitting)
+            {
+                <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                <span>Submitting...</span>
+            }
+            else
+            {
+                <span>Submit</span>
+            }
+        </button>
+    </EditForm>
+
+    <div class="auth-footer">
+        Already have an account?
+        <button type="button" class="btn btn-link" disabled="@_isSubmitting" @onclick="GoToLogin">Login</button>
+    </div>
+</div>
+
+@code {
+    private readonly RegisterFormModel _model = new();
+    private bool _isSubmitting;
+
+    private async Task HandleRegisterAsync()
+    {
+        // Defensive re-entrancy guard — see the matching comment in Login.razor.
+        if (_isSubmitting)
+        {
+            return;
+        }
+
+        _isSubmitting = true;
+        var result = await AuthApi.RegisterAsync(_model.Username, _model.Password);
+
+        if (result.Success)
+        {
+            // A SweetAlert2 toast lives outside Blazor's DOM tree (appended straight to
+            // document.body), so it keeps showing and auto-dismissing on its own timer
+            // even though we navigate away immediately right after.
+            await Notify.ShowSuccessAsync(result.Message);
+            Navigation.NavigateTo("/");
+            return;
+        }
+
+        _isSubmitting = false;
+        await Notify.ShowErrorAsync(result.Message);
+    }
+
+    private void GoToLogin() => Navigation.NavigateTo("/");
+
+    private class RegisterFormModel
+    {
+        [Required(ErrorMessage = "Username is required.")]
+        public string Username { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Password is required.")]
+        public string Password { get; set; } = string.Empty;
+    }
+}

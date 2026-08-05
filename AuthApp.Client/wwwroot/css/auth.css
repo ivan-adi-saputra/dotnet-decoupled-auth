@@ -1,0 +1,74 @@
+/* Shared styling for the Login and Register cards. */
+
+.auth-card {
+    width: 100%;
+    max-width: 400px;
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.05);
+    padding: 2.5rem 2rem;
+    margin: 1rem auto;
+}
+
+.auth-icon {
+    width: 3rem;
+    height: 3rem;
+    margin: 0 auto 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #e7f1ff;
+    color: #1b6ec2;
+    border-radius: 50%;
+}
+
+.auth-card h3 {
+    text-align: center;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+}
+
+.auth-subtitle {
+    text-align: center;
+    color: #6c757d;
+    font-size: 0.9rem;
+    margin-bottom: 1.75rem;
+}
+
+.auth-card .form-label {
+    font-weight: 500;
+    font-size: 0.9rem;
+}
+
+.auth-card .form-control {
+    padding: 0.55rem 0.85rem;
+    border-radius: 8px;
+}
+
+.auth-card .form-control:focus {
+    border-color: #1b6ec2;
+    box-shadow: 0 0 0 0.2rem rgba(27, 110, 194, 0.15);
+}
+
+.auth-card .btn-primary {
+    width: 100%;
+    padding: 0.6rem;
+    font-weight: 500;
+    border-radius: 8px;
+    margin-top: 0.5rem;
+}
+
+.auth-footer {
+    text-align: center;
+    margin-top: 1.5rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid #eef0f2;
+    font-size: 0.9rem;
+    color: #6c757d;
+}
+
+.auth-footer .btn-link {
+    padding: 0;
+    font-weight: 500;
+    vertical-align: baseline;
+}

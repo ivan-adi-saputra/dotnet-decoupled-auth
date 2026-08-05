@@ -1,0 +1,111 @@
+@page "/"
+@inject AuthApiService AuthApi
+@inject AuthSession Session
+@inject LoginAttemptTracker AttemptTracker
+@inject NotificationService Notify
+@inject NavigationManager Navigation
+
+<PageTitle>Login</PageTitle>
+
+<div class="auth-card">
+    <div class="auth-icon">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="5" y="11" width="14" height="10" rx="2" />
+            <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+        </svg>
+    </div>
+    <h3>Welcome Back</h3>
+    <p class="auth-subtitle">Sign in to continue</p>
+
+    <EditForm Model="_model" OnValidSubmit="HandleLoginAsync">
+        <DataAnnotationsValidator />
+
+        <div class="mb-3">
+            <label for="username" class="form-label">Username</label>
+            <InputText id="username" class="form-control" placeholder="Enter your username" autocomplete="username" @bind-Value="_model.Username" />
+            <ValidationMessage For="@(() => _model.Username)" class="text-danger small" />
+        </div>
+
+        <div class="mb-3">
+            <label for="password" class="form-label">Password</label>
+            <InputText id="password" type="password" class="form-control" placeholder="Enter your password" autocomplete="current-password" @bind-Value="_model.Password" />
+            <ValidationMessage For="@(() => _model.Password)" class="text-danger small" />
+        </div>
+
+        <button type="submit" class="btn btn-primary" disabled="@_isSubmitting">
+            @if (_isSubmitting)
+            {
+                <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                <span>Logging in...</span>
+            }
+            else
+            {
+                <span>Login</span>
+            }
+        </button>
+    </EditForm>
+
+    <div class="auth-footer">
+        Don't have an account?
+        <button type="button" class="btn btn-link" disabled="@_isSubmitting" @onclick="GoToRegister">Register</button>
+    </div>
+</div>
+
+@code {
+    private readonly LoginFormModel _model = new();
+    private bool _isSubmitting;
+
+    private async Task HandleLoginAsync()
+    {
+        // Defensive re-entrancy guard: the submit button is disabled while a request is
+        // in flight, which already blocks click-driven double-submits in every mainstream
+        // browser (a disabled default submit button also suppresses Enter-key submission).
+        // This is a cheap second line of defense in case that assumption ever breaks.
+        if (_isSubmitting)
+        {
+            return;
+        }
+
+        _isSubmitting = true;
+        var result = await AuthApi.LoginAsync(_model.Username, _model.Password);
+
+        if (result.Success)
+        {
+            AttemptTracker.Reset();
+            Session.SignIn(_model.Username, result.Token!);
+            AuthApi.SetBearerToken(result.Token);
+
+            // A SweetAlert2 toast lives outside Blazor's DOM tree (appended straight to
+            // document.body), so it keeps showing and auto-dismissing on its own timer
+            // even though we navigate away immediately right after — no artificial
+            // Task.Delay needed just to let a Blazor-rendered alert get painted first.
+            await Notify.ShowSuccessAsync(result.Message);
+            Navigation.NavigateTo("/welcome");
+            return;
+        }
+
+        _isSubmitting = false;
+        await Notify.ShowErrorAsync(result.Message);
+
+        // Tracked in a scoped service (not a field on this component) so that navigating
+        // to Register and back — which disposes and recreates this component — doesn't
+        // silently reset the count. It's only meant to reset on success (above) or when
+        // the WASM app itself restarts via a real browser reload ("Start -> LoginFailed
+        // = 0" on the flowchart), not on in-app navigation.
+        if (AttemptTracker.RecordFailure() > 3)
+        {
+            Navigation.NavigateTo("/lockscreen");
+        }
+    }
+
+    private void GoToRegister() => Navigation.NavigateTo("/register");
+
+    private class LoginFormModel
+    {
+        [Required(ErrorMessage = "Username is required.")]
+        public string Username { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Password is required.")]
+        public string Password { get; set; } = string.Empty;
+    }
+}
