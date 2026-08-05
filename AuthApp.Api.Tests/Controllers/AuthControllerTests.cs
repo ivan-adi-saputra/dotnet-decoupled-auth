@@ -2,6 +2,7 @@ using AuthApp.Api.Controllers;
 using AuthApp.Api.Models;
 using AuthApp.Api.Models.Dtos;
 using AuthApp.Api.Services;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -21,6 +22,7 @@ public class AuthControllerTests
             _userStore.Object,
             _passwordHasher.Object,
             _tokenGenerator.Object,
+            Mock.Of<IWebHostEnvironment>(),
             Mock.Of<ILogger<AuthController>>());
     }
 

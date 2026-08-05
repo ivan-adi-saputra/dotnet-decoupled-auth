@@ -2,6 +2,8 @@ using AuthApp.Api.Controllers;
 using AuthApp.Api.Models;
 using AuthApp.Api.Models.Dtos;
 using AuthApp.Api.Services;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -17,11 +19,21 @@ public class AuthControllerLoginTests
 
     public AuthControllerLoginTests()
     {
+        var environment = new Mock<IWebHostEnvironment>();
+        environment.Setup(e => e.EnvironmentName).Returns("Development");
+
         _sut = new AuthController(
             _userStore.Object,
             _passwordHasher.Object,
             _tokenGenerator.Object,
-            Mock.Of<ILogger<AuthController>>());
+            environment.Object,
+            Mock.Of<ILogger<AuthController>>())
+        {
+            // Login() now sets a cookie on success, which needs a real HttpContext
+            // (ControllerContext.HttpContext is null by default when constructing a
+            // controller directly instead of through the MVC pipeline).
+            ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() }
+        };
     }
 
     [Fact]

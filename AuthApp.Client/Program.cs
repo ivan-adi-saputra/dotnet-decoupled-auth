@@ -8,9 +8,12 @@ builder.RootComponents.Add<App>("#app");
 builder.RootComponents.Add<HeadOutlet>("head::after");
 
 var apiBaseUrl = builder.Configuration["ApiBaseUrl"] ?? builder.HostEnvironment.BaseAddress;
-builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(apiBaseUrl) });
 
-builder.Services.AddScoped<AuthApiService>();
+builder.Services.AddTransient<CredentialsIncludedHandler>();
+builder.Services
+    .AddHttpClient<AuthApiService>(client => client.BaseAddress = new Uri(apiBaseUrl))
+    .AddHttpMessageHandler<CredentialsIncludedHandler>();
+
 builder.Services.AddScoped<AuthSession>();
 builder.Services.AddScoped<LoginAttemptTracker>();
 builder.Services.AddScoped<NotificationService>();

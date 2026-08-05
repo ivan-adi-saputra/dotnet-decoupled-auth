@@ -1,4 +1,5 @@
 using System.Text;
+using AuthApp.Api.Authentication;
 using AuthApp.Api.ErrorHandling;
 using AuthApp.Api.Filters;
 using AuthApp.Api.Services;
@@ -89,6 +90,24 @@ builder.Services
             ValidateLifetime = true,
             ClockSkew = TimeSpan.FromSeconds(30)
         };
+
+        // The SPA no longer attaches an Authorization header itself — it relies on the
+        // HttpOnly cookie set on login, which the browser sends automatically. Falling
+        // back to the cookie only when no header is present keeps the existing header-based
+        // flow (e.g. Swagger's "Authorize" button) working unchanged.
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                if (string.IsNullOrEmpty(context.Token) &&
+                    context.Request.Cookies.TryGetValue(AuthCookieDefaults.CookieName, out var cookieToken))
+                {
+                    context.Token = cookieToken;
+                }
+
+                return Task.CompletedTask;
+            }
+        };
     });
 
 builder.Services.AddAuthorization();
@@ -108,9 +127,13 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy(ClientCorsPolicy, policy =>
     {
+        // AllowCredentials is required so the browser sends/accepts the HttpOnly auth
+        // cookie on cross-origin requests (the client and API run on different ports).
+        // Only valid alongside a specific origin allow-list — never with AllowAnyOrigin().
         policy.WithOrigins(allowedOrigins)
             .AllowAnyHeader()
-            .AllowAnyMethod();
+            .AllowAnyMethod()
+            .AllowCredentials();
     });
 });
 

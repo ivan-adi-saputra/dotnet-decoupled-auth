@@ -21,15 +21,19 @@
 @code {
     protected override void OnInitialized()
     {
-        // Reaching /welcome without a live session (typed directly in the address bar, or
-        // after a reload — AuthSession is in-memory only and clears on reload by design)
-        // has no username to greet, so send the user back to Login instead.
+        // Reaching /welcome without a live session (typed directly in the address bar, no
+        // cookie, or the cookie's token expired) has no username to greet, so send the
+        // user back to Login instead. App.razor already tried to restore the session from
+        // the auth cookie before this page ever renders, so this only fires when that
+        // restore genuinely found nobody logged in.
         Navigation.EnsureOr(Session.IsAuthenticated, "/");
     }
 
-    private void HandleLogout()
+    private async Task HandleLogout()
     {
-        AuthApi.SetBearerToken(null);
+        // Clears the HttpOnly cookie server-side — it can't be removed from JS directly,
+        // since HttpOnly means this code was never allowed to read it in the first place.
+        await AuthApi.LogoutAsync();
         Session.SignOut();
         Navigation.NavigateTo("/");
     }

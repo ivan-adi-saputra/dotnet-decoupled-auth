@@ -12,6 +12,8 @@ public class JwtTokenGenerator : IJwtTokenGenerator
     private readonly int _expiryMinutes;
     private readonly SigningCredentials _signingCredentials;
 
+    public int ExpiryMinutes => _expiryMinutes;
+
     public JwtTokenGenerator(IConfiguration configuration)
     {
         _issuer = RequireConfig(configuration, "Jwt:Issuer");

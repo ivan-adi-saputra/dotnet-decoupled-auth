@@ -57,6 +57,13 @@
 
     protected override void OnInitialized()
     {
+        // Already signed in — send back to Welcome instead of showing a login form there's
+        // no reason to fill out again (e.g. pressing Back after a successful login).
+        if (!Navigation.EnsureOr(!Session.IsAuthenticated, "/welcome"))
+        {
+            return;
+        }
+
         // Once locked out, the only legitimate way back to LoginFailed = 0 is a real app
         // restart (browser reload), matching the flowchart's "Start" point — not by simply
         // navigating back to this page while AttemptTracker's count is untouched. Without
@@ -82,8 +89,7 @@
         if (result.Success)
         {
             AttemptTracker.Reset();
-            Session.SignIn(_model.Username, result.Token!);
-            AuthApi.SetBearerToken(result.Token);
+            Session.SignIn(_model.Username);
 
             // A SweetAlert2 toast lives outside Blazor's DOM tree (appended straight to
             // document.body), so it keeps showing and auto-dismissing on its own timer

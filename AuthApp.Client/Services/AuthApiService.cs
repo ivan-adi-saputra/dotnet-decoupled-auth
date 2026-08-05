@@ -1,4 +1,3 @@
-using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using AuthApp.Client.Models;
@@ -60,12 +59,40 @@ public class AuthApiService
     };
 
     /// <summary>
-    /// Attaches (or clears, when null) the bearer token used for subsequent authenticated
-    /// calls such as GET /api/auth/me.
+    /// Asks the server who (if anyone) the caller's session cookie identifies. Used to
+    /// restore AuthSession when the app boots — the cookie is HttpOnly, so this is the
+    /// only way the client can find out it survived a reload. Returns null for any
+    /// failure (no cookie, expired token, network error) — "not logged in" is a normal
+    /// outcome here, not something callers need to distinguish from a real error.
     /// </summary>
-    public void SetBearerToken(string? token)
+    public async Task<UserInfoResponse?> GetCurrentUserAsync()
     {
-        _httpClient.DefaultRequestHeaders.Authorization =
-            string.IsNullOrEmpty(token) ? null : new AuthenticationHeaderValue("Bearer", token);
+        try
+        {
+            var response = await _httpClient.GetAsync(ApiRoutes.Me);
+            return response.IsSuccessStatusCode
+                ? await response.Content.ReadFromJsonAsync<UserInfoResponse>()
+                : null;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Clears the server-side auth cookie. Best-effort: even if this fails (e.g. the API
+    /// is briefly unreachable), the caller still clears its own in-memory AuthSession,
+    /// which is what the app's route guards actually check.
+    /// </summary>
+    public async Task LogoutAsync()
+    {
+        try
+        {
+            await _httpClient.PostAsync(ApiRoutes.Logout, content: null);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+        }
     }
 }

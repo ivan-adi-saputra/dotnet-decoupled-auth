@@ -1,3 +1,4 @@
+using AuthApp.Api.Authentication;
 using AuthApp.Api.Models;
 using AuthApp.Api.Models.Dtos;
 using AuthApp.Api.Services;
@@ -13,17 +14,20 @@ public class AuthController : ControllerBase
     private readonly IUserStore _userStore;
     private readonly IPasswordHasher _passwordHasher;
     private readonly IJwtTokenGenerator _tokenGenerator;
+    private readonly IWebHostEnvironment _environment;
     private readonly ILogger<AuthController> _logger;
 
     public AuthController(
         IUserStore userStore,
         IPasswordHasher passwordHasher,
         IJwtTokenGenerator tokenGenerator,
+        IWebHostEnvironment environment,
         ILogger<AuthController> logger)
     {
         _userStore = userStore;
         _passwordHasher = passwordHasher;
         _tokenGenerator = tokenGenerator;
+        _environment = environment;
         _logger = logger;
     }
 
@@ -70,8 +74,32 @@ public class AuthController : ControllerBase
         }
 
         var token = _tokenGenerator.GenerateToken(user.Username);
+
+        // Set alongside the token in the response body (kept for Swagger's manual
+        // "Authorize" flow) so the SPA can rely on the cookie instead of holding the raw
+        // token itself — the cookie is HttpOnly, so it survives a page reload without ever
+        // being readable by JavaScript, unlike localStorage/sessionStorage.
+        Response.Cookies.Append(AuthCookieDefaults.CookieName, token, new CookieOptions
+        {
+            HttpOnly = true,
+            Secure = !_environment.IsDevelopment(),
+            SameSite = SameSiteMode.Lax,
+            Expires = DateTimeOffset.UtcNow.AddMinutes(_tokenGenerator.ExpiryMinutes),
+            Path = "/"
+        });
+
         _logger.LogInformation("User {Username} logged in successfully.", request.Username);
         return Ok(new LoginResponse(true, "Login successful. Welcome back!", token));
+    }
+
+    [HttpPost("logout")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public IActionResult Logout()
+    {
+        // Deliberately not [Authorize]: logging out should always succeed, even if the
+        // cookie is already missing or the token inside it has expired.
+        Response.Cookies.Delete(AuthCookieDefaults.CookieName, new CookieOptions { Path = "/" });
+        return Ok();
     }
 
     [HttpGet("me")]

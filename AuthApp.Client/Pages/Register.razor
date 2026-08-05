@@ -1,5 +1,6 @@
 @page "/register"
 @inject AuthApiService AuthApi
+@inject AuthSession Session
 @inject NotificationService Notify
 @inject NavigationManager Navigation
 
@@ -54,6 +55,13 @@
 @code {
     private readonly RegisterFormModel _model = new();
     private bool _isSubmitting;
+
+    protected override void OnInitialized()
+    {
+        // Already signed in — creating another account while logged in doesn't make sense
+        // in this app's flow, so send back to Welcome instead of showing the form.
+        Navigation.EnsureOr(!Session.IsAuthenticated, "/welcome");
+    }
 
     private async Task HandleRegisterAsync()
     {

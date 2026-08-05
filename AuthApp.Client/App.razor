@@ -1,12 +1,43 @@
-﻿<Router AppAssembly="@typeof(App).Assembly">
-    <Found Context="routeData">
-        <RouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)" />
-        <FocusOnNavigate RouteData="@routeData" Selector="h1" />
-    </Found>
-    <NotFound>
-        <PageTitle>Not found</PageTitle>
-        <LayoutView Layout="@typeof(MainLayout)">
-            <p role="alert">Sorry, there's nothing at this address.</p>
-        </LayoutView>
-    </NotFound>
-</Router>
+@inject AuthApiService AuthApi
+@inject AuthSession Session
+
+@if (_isRestoringSession)
+{
+    <div style="min-height:100vh; display:flex; align-items:center; justify-content:center; background:#f4f6f9; font-family:sans-serif; color:#6c757d;">
+        Loading...
+    </div>
+}
+else
+{
+    <Router AppAssembly="@typeof(App).Assembly">
+        <Found Context="routeData">
+            <RouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)" />
+            <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+        </Found>
+        <NotFound>
+            <PageTitle>Not found</PageTitle>
+            <LayoutView Layout="@typeof(MainLayout)">
+                <p role="alert">Sorry, there's nothing at this address.</p>
+            </LayoutView>
+        </NotFound>
+    </Router>
+}
+
+@code {
+    private bool _isRestoringSession = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // The auth cookie is HttpOnly, so this is the only way the app can find out a
+        // previous login survived a reload — it can't just read the cookie itself. Runs
+        // once, before any page (and its route guards) ever renders, so Login/Register/
+        // Welcome/LockScreen all see an already-correct AuthSession from their first render.
+        var user = await AuthApi.GetCurrentUserAsync();
+        if (user is not null)
+        {
+            Session.SignIn(user.Username);
+        }
+
+        _isRestoringSession = false;
+    }
+}

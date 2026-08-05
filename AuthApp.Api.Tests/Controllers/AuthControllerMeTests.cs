@@ -2,6 +2,7 @@ using System.Security.Claims;
 using AuthApp.Api.Controllers;
 using AuthApp.Api.Models.Dtos;
 using AuthApp.Api.Services;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
@@ -17,6 +18,7 @@ public class AuthControllerMeTests
             Mock.Of<IUserStore>(),
             Mock.Of<IPasswordHasher>(),
             Mock.Of<IJwtTokenGenerator>(),
+            Mock.Of<IWebHostEnvironment>(),
             Mock.Of<ILogger<AuthController>>());
 
         var identity = username is null
