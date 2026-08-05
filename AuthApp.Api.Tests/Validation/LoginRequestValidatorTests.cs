@@ -4,14 +4,14 @@ using FluentValidation.TestHelper;
 
 namespace AuthApp.Api.Tests.Validation;
 
-public class RegisterRequestValidatorTests
+public class LoginRequestValidatorTests
 {
-    private readonly RegisterRequestValidator _validator = new();
+    private readonly LoginRequestValidator _validator = new();
 
     [Fact]
     public void Should_have_error_when_username_is_empty()
     {
-        var result = _validator.TestValidate(new RegisterRequest("", "secret123"));
+        var result = _validator.TestValidate(new LoginRequest("", "secret123"));
 
         result.ShouldHaveValidationErrorFor(x => x.Username)
             .WithErrorMessage("Username is required.");
@@ -21,7 +21,7 @@ public class RegisterRequestValidatorTests
     [Fact]
     public void Should_have_error_when_password_is_empty()
     {
-        var result = _validator.TestValidate(new RegisterRequest("user", ""));
+        var result = _validator.TestValidate(new LoginRequest("user", ""));
 
         result.ShouldHaveValidationErrorFor(x => x.Password)
             .WithErrorMessage("Password is required.");
@@ -33,7 +33,7 @@ public class RegisterRequestValidatorTests
     [InlineData(null)]
     public void Should_treat_whitespace_or_null_username_as_empty(string? username)
     {
-        var result = _validator.TestValidate(new RegisterRequest(username!, "secret123"));
+        var result = _validator.TestValidate(new LoginRequest(username!, "secret123"));
 
         result.ShouldHaveValidationErrorFor(x => x.Username);
     }
@@ -41,7 +41,7 @@ public class RegisterRequestValidatorTests
     [Fact]
     public void Should_have_error_when_username_is_shorter_than_3_characters()
     {
-        var result = _validator.TestValidate(new RegisterRequest("ab", "secret123"));
+        var result = _validator.TestValidate(new LoginRequest("ab", "secret123"));
 
         result.ShouldHaveValidationErrorFor(x => x.Username)
             .WithErrorMessage("Username must be at least 3 characters long.");
@@ -50,7 +50,7 @@ public class RegisterRequestValidatorTests
     [Fact]
     public void Should_have_error_when_username_contains_spaces()
     {
-        var result = _validator.TestValidate(new RegisterRequest("bad user", "secret123"));
+        var result = _validator.TestValidate(new LoginRequest("bad user", "secret123"));
 
         result.ShouldHaveValidationErrorFor(x => x.Username)
             .WithErrorMessage("Username must not contain spaces.");
@@ -59,7 +59,7 @@ public class RegisterRequestValidatorTests
     [Fact]
     public void Should_have_error_when_password_is_shorter_than_8_characters()
     {
-        var result = _validator.TestValidate(new RegisterRequest("user", "1234567"));
+        var result = _validator.TestValidate(new LoginRequest("user", "1234567"));
 
         result.ShouldHaveValidationErrorFor(x => x.Password)
             .WithErrorMessage("Password must be at least 8 characters long.");
@@ -68,7 +68,7 @@ public class RegisterRequestValidatorTests
     [Fact]
     public void Should_not_have_any_errors_when_request_is_valid()
     {
-        var result = _validator.TestValidate(new RegisterRequest("user", "secret123"));
+        var result = _validator.TestValidate(new LoginRequest("user", "secret123"));
 
         result.ShouldNotHaveAnyValidationErrors();
     }
